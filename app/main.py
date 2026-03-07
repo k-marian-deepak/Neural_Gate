@@ -6,6 +6,7 @@ from typing import Any
 
 import httpx
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
 from app.agents.body_agent import BodyAgent
@@ -19,6 +20,7 @@ from app.api.websocket import SOCWebSocketManager, build_ws_router
 from app.config import settings
 from app.pipeline.ids_engine import IDSEngine
 from app.pipeline.pcap_capture import CaptureAdapter
+from app.pipeline.adaptive_policy import AdaptivePolicy
 from app.pipeline.siem import SIEMStore
 from app.pipeline.soar import SOAREngine
 
@@ -48,6 +50,7 @@ class RuntimeState:
     gru_agent: GRUTemporalAgent
     entropy_agent: EntropyAgent
     egress_agent: EgressAgent
+    adaptive: AdaptivePolicy
     last_agent_scores: dict[str, Any] = field(default_factory=dict)
 
 
@@ -66,6 +69,14 @@ def build_state() -> RuntimeState:
         gru_agent=GRUTemporalAgent(),
         entropy_agent=EntropyAgent(),
         egress_agent=EgressAgent(model),
+        adaptive=AdaptivePolicy(
+            enabled=settings.enable_adaptive_learning,
+            learning_rate=settings.adaptive_learning_rate,
+            influence=settings.adaptive_influence,
+            max_memory=settings.adaptive_memory_size,
+            persist_path=settings.adaptive_persist_path,
+            autosave_every=settings.adaptive_autosave_every,
+        ),
     )
 
 
@@ -95,6 +106,13 @@ async def emit_event(state: RuntimeState, payload: dict[str, Any]) -> None:
 
 
 app = FastAPI(title="Neural Gate", version="2026")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.state.runtime = build_state()
 
 
@@ -107,6 +125,7 @@ async def startup_event():
     if settings.enable_phase2_pcap:
         print(f"[Neural-Gate] PCAP Interface: {settings.pcap_interface}")
         print(f"[Neural-Gate] PCAP Filter: {settings.pcap_filter}")
+    print(f"[Neural-Gate] Adaptive Learning: {'ENABLED' if settings.enable_adaptive_learning else 'DISABLED'}")
 
 
 @app.on_event("shutdown")
@@ -116,6 +135,8 @@ async def shutdown_event():
     state = _state()
     if hasattr(state.capture, 'shutdown'):
         state.capture.shutdown()
+    if hasattr(state.adaptive, "shutdown"):
+        state.adaptive.shutdown()
     print("[Neural-Gate] Shutdown complete")
 
 
@@ -150,6 +171,33 @@ async def proxy_all(full_path: str, request: Request):
     state = _state()
     source_ip = get_source_ip(request)
 
+    # ==== BLOCKLIST CHECK - FIRST LINE OF DEFENSE (instant, before any processing) ====
+    if state.siem.is_ip_blocked(source_ip):
+        await emit_event(
+            state,
+            {
+                "event": "threat_blocked",
+                "source_ip": source_ip,
+                "attack_type": "blocklist_hit",
+                "severity": "high",
+                "phase": "Blocklist (Early Exit)",
+                "confidence": 1.0,
+                "action": "BLOCKED",
+                "message": f"IP {source_ip} is blocklisted (instant rejection)",
+            },
+        )
+        return JSONResponse(
+            {"detail": "Your IP is blocklisted. Request rejected."},
+            status_code=403,
+        )
+
+    # ==== KILL SWITCH CHECK - SECOND LINE OF DEFENSE ====
+    if state.siem.kill_switch_enabled:
+        return JSONResponse(
+            {"detail": "Service unavailable (kill switch active)"},
+            status_code=503,
+        )
+
     body = await request.body()
     body_for_analysis = body[: settings.max_body_bytes]
     headers = {k: v for k, v in request.headers.items()}
@@ -167,7 +215,9 @@ async def proxy_all(full_path: str, request: Request):
     gru_score = state.gru_agent.score(source_ip, max(header_score, body_score))
 
     confidence = min(max((header_score * 0.30) + (body_score * 0.35) + (gru_score * 0.25) + (entropy_score * 0.10), 0.0), 1.0)
-    severity = choose_severity(ids_alerts, confidence)
+    fingerprint, tokens = state.adaptive.fingerprint(request.method, request.url.path, body_text)
+    adjusted_confidence, adaptive_info = state.adaptive.adjust_confidence(confidence, fingerprint, tokens)
+    severity = choose_severity(ids_alerts, adjusted_confidence)
 
     state.last_agent_scores = {
         "header_score": round(header_score, 4),
@@ -175,7 +225,9 @@ async def proxy_all(full_path: str, request: Request):
         "gru_score": round(gru_score, 4),
         "entropy": round(float(features["entropy"]), 4),
         "entropy_score": round(entropy_score, 4),
-        "confidence": round(confidence, 4),
+        "base_confidence": round(confidence, 4),
+        "confidence": round(adjusted_confidence, 4),
+        "adaptive": adaptive_info,
     }
 
     await emit_event(
@@ -190,13 +242,19 @@ async def proxy_all(full_path: str, request: Request):
                 "gru_score": gru_score,
                 "entropy": float(features["entropy"]),
             },
-            "confidence": confidence,
+            "confidence": adjusted_confidence,
             "action": "ANALYZED",
             "message": "Agent scores updated",
         },
     )
 
-    decision = state.soar.decide_request_action(source_ip, ids_alerts, confidence, severity)
+    decision = state.soar.decide_request_action(source_ip, ids_alerts, adjusted_confidence, severity)
+    state.adaptive.learn(
+        fingerprint=fingerprint,
+        ids_alert_count=len(ids_alerts),
+        action=decision["action"],
+        confidence=adjusted_confidence,
+    )
     if decision["action"] != "ALLOWED":
         attack_type = ids_alerts[0].get("attack_type") if ids_alerts else "unknown"
         await emit_event(
@@ -212,8 +270,9 @@ async def proxy_all(full_path: str, request: Request):
                     "body_score": body_score,
                     "gru_score": gru_score,
                     "entropy": float(features["entropy"]),
+                    "adaptive": adaptive_info,
                 },
-                "confidence": confidence,
+                "confidence": adjusted_confidence,
                 "action": decision["action"],
                 "message": decision["reason"],
             },

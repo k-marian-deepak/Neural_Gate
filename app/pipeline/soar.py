@@ -25,14 +25,9 @@ class SOAREngine:
                 "severity": "critical",
             }
 
-        if self.siem.is_ip_blocked(source_ip):
-            return {
-                "action": "BLOCKED",
-                "reason": "Source IP is blocklisted",
-                "event": "threat_blocked",
-                "severity": "high",
-            }
-
+        # NOTE: Blocklist check now happens in proxy_all() as early exit before this decision
+        # This call will never see blocked IPs (they're rejected immediately)
+        
         critical_ids = any(alert.get("severity") == "critical" for alert in ids_alerts)
         if critical_ids or confidence >= settings.malicious_threshold:
             self.siem.block_ip(source_ip, settings.blocklist_ttl_seconds)

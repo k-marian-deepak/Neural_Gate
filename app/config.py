@@ -18,6 +18,13 @@ class Settings(BaseSettings):
     entropy_threshold: float = 7.0
     exfiltration_entropy_threshold: float = 7.5
 
+    enable_adaptive_learning: bool = True
+    adaptive_learning_rate: float = 0.15
+    adaptive_influence: float = 0.12
+    adaptive_memory_size: int = 5000
+    adaptive_persist_path: str = "app/models/adaptive_memory.json"
+    adaptive_autosave_every: int = 50
+
     enable_phase2_pcap: bool = False
     pcap_interface: str = "lo"  # Network interface for packet capture (lo, eth0, wlan0, etc.)
     pcap_filter: str = "tcp port 8000"  # BPF filter for packet capture

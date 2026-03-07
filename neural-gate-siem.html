@@ -7,71 +7,278 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Consolas', 'Courier New', monospace;
+            font-family: Inter, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             background: #0a0e1a;
-            color: #00ff88;
-            padding: 20px;
+            color: #d4e4f7;
+            padding: 16px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
         }
         h1 {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 8px;
             color: #00ff88;
-            text-shadow: 0 0 10px #00ff88;
+            letter-spacing: 0.5px;
+            font-size: 28px;
         }
         .status {
             text-align: center;
-            margin-bottom: 20px;
-            font-size: 14px;
+            margin-bottom: 14px;
+            font-size: 13px;
         }
         .connected { color: #00ff88; }
         .disconnected { color: #ff4444; }
+        .toolbar,
+        .adaptive-panel,
         .events {
-            max-width: 1200px;
-            margin: 0 auto;
-            max-height: 80vh;
-            overflow-y: auto;
-            border: 2px solid #00ff88;
-            padding: 10px;
-            background: #0d1117;
+            border: 1px solid #223347;
+            border-radius: 10px;
+            background: #0f1725;
         }
-        .event {
-            border-left: 4px solid;
-            padding: 10px;
-            margin-bottom: 10px;
-            background: #161b22;
-            font-size: 12px;
-            line-height: 1.6;
+        .toolbar,
+        .adaptive-panel {
+            padding: 12px;
+            margin-bottom: 12px;
         }
-        .event.critical { border-left-color: #ff0044; }
-        .event.high { border-left-color: #ff8800; }
-        .event.medium { border-left-color: #ffdd00; }
-        .event.low { border-left-color: #00ff88; }
-        .event-header {
-            font-weight: bold;
+        .toolbar-row,
+        .adaptive-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 5px;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .toolbar-title {
+            font-size: 13px;
+            color: #8ec6ff;
+        }
+        .filters,
+        .controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .chip {
+            border: 1px solid #35516f;
+            color: #9ac3ea;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+        }
+        .adaptive-meta {
+            color: #c5d7e8;
+            font-size: 12px;
+        }
+        select,
+        input,
+        button {
+            background: #152338;
+            color: #cfe8ff;
+            border: 1px solid #2f4e71;
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+        input::placeholder {
+            color: #88a2bf;
+        }
+        button {
+            cursor: pointer;
+        }
+        button:hover {
+            background: #1f3654;
+        }
+        .button-danger {
+            border-color: #7a2731;
+            color: #ffb3bf;
+            background: #2b1519;
+        }
+        .button-danger:hover {
+            background: #3a1b21;
+        }
+        .events {
+            min-height: 260px;
+            max-height: 72vh;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .empty-state {
+            text-align: center;
+            color: #8ca6c3;
+            padding: 24px 0;
+            font-size: 13px;
+        }
+        .event {
+            border: 1px solid #26364a;
+            border-left: 5px solid;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #151f2d;
+            font-size: 12px;
+        }
+        .event.critical { border-left-color: #ff3a56; }
+        .event.high { border-left-color: #ff9800; }
+        .event.medium { border-left-color: #ffd84d; }
+        .event.low { border-left-color: #35d39a; }
+        .event-header {
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .event-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
         }
         .event-type {
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.4px;
+            color: #dce9f7;
         }
-        .event-body { color: #aabbcc; }
-        .event-key { color: #00ddff; }
-        .event-value { color: #ffffff; }
+        .badge {
+            border: 1px solid #334b68;
+            border-radius: 999px;
+            padding: 2px 8px;
+            font-size: 10px;
+            color: #a8c8ea;
+        }
+        .event-time {
+            color: #8ca7c4;
+            white-space: nowrap;
+        }
+        .event-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+            gap: 8px;
+            margin: 6px 0;
+        }
+        .kv {
+            background: #101a27;
+            border: 1px solid #26374b;
+            border-radius: 6px;
+            padding: 6px;
+        }
+        .kv .k {
+            color: #77b7f0;
+            display: block;
+            font-size: 10px;
+            margin-bottom: 3px;
+        }
+        .kv .v {
+            color: #eef6ff;
+            word-break: break-word;
+        }
+        .details {
+            margin-top: 8px;
+            border-top: 1px dashed #2f4764;
+            padding-top: 8px;
+            color: #96aec8;
+        }
+        .details summary {
+            cursor: pointer;
+            color: #8ec6ff;
+            margin-bottom: 4px;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: #0d1623;
+            border: 1px solid #24344b;
+            border-radius: 6px;
+            padding: 8px;
+            margin-top: 6px;
+            font-size: 11px;
+            color: #d8e8f8;
+        }
+        .feedback-actions {
+            margin-top: 8px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .toast {
+            position: fixed;
+            right: 14px;
+            bottom: 14px;
+            background: #122236;
+            color: #cfe8ff;
+            border: 1px solid #2f4e71;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 12px;
+            max-width: 360px;
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <h1>🛡️ NEURAL-GATE SOC DASHBOARD 2026</h1>
-    <div class="status">
-        <span id="status" class="disconnected">DISCONNECTED</span>
+    <div class="container">
+        <h1>🛡️ NEURAL-GATE SOC DASHBOARD 2026</h1>
+        <div class="status">
+            <span id="status" class="disconnected">DISCONNECTED</span>
+        </div>
+
+        <div class="toolbar">
+            <div class="toolbar-row">
+                <div class="toolbar-title">Live Event Stream <span class="chip" id="eventCount">0 events shown</span></div>
+                <div class="filters">
+                    <select id="severityFilter">
+                        <option value="all">All Severities</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                    <input id="eventSearch" type="text" placeholder="Filter by event, IP, action, attack type" />
+                </div>
+                <div class="controls">
+                    <button id="togglePause">Pause Stream</button>
+                    <button id="clearEvents">Clear View</button>
+                    <button id="toggleAutoscroll">Autoscroll: ON</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="adaptive-panel">
+            <div class="adaptive-row">
+                <div class="adaptive-meta" id="adaptiveStats">Adaptive: loading...</div>
+                <div class="controls">
+                    <button id="refreshAdaptive">Refresh Adaptive Stats</button>
+                    <button id="resetAdaptive" class="button-danger">Reset Adaptive Memory</button>
+                </div>
+            </div>
+        </div>
+        <div class="events" id="events">
+            <div class="empty-state" id="emptyState">Waiting for events...</div>
+        </div>
     </div>
-    <div class="events" id="events"></div>
+    <div class="toast" id="toast"></div>
 
     <script>
         const eventsContainer = document.getElementById('events');
         const statusEl = document.getElementById('status');
+        const adaptiveStatsEl = document.getElementById('adaptiveStats');
+        const refreshAdaptiveBtn = document.getElementById('refreshAdaptive');
+        const resetAdaptiveBtn = document.getElementById('resetAdaptive');
+        const severityFilterEl = document.getElementById('severityFilter');
+        const eventSearchEl = document.getElementById('eventSearch');
+        const togglePauseBtn = document.getElementById('togglePause');
+        const clearEventsBtn = document.getElementById('clearEvents');
+        const toggleAutoscrollBtn = document.getElementById('toggleAutoscroll');
+        const eventCountEl = document.getElementById('eventCount');
+        const emptyStateEl = document.getElementById('emptyState');
+        const toastEl = document.getElementById('toast');
         let ws;
+        let paused = false;
+        let autoscroll = true;
+        let visibleEvents = 0;
 
         function connect() {
             ws = new WebSocket('ws://localhost:8000/ws/soc');
@@ -79,6 +286,7 @@
             ws.onopen = () => {
                 statusEl.textContent = 'CONNECTED';
                 statusEl.className = 'connected';
+                loadAdaptiveStats();
             };
 
             ws.onmessage = (evt) => {
@@ -98,41 +306,207 @@
             };
         }
 
+        async function loadAdaptiveStats() {
+            try {
+                const response = await fetch('http://localhost:8000/api/adaptive/stats');
+                const stats = await response.json();
+                adaptiveStatsEl.textContent = `Adaptive: enabled=${stats.enabled} | patterns=${stats.memory_entries} | avg_q=${stats.avg_q} | updates=${(stats.counters?.learning_updates || 0)} | feedback=${(stats.counters?.feedback_updates || 0)}`;
+            } catch (error) {
+                adaptiveStatsEl.textContent = `Adaptive: unavailable (${error.message})`;
+            }
+        }
+
+        async function submitFeedback(fingerprint, label, sourceIp) {
+            try {
+                const response = await fetch('http://localhost:8000/api/adaptive/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fingerprint,
+                        label,
+                        source_ip: sourceIp || 'unknown'
+                    })
+                });
+                const result = await response.json();
+                showToast(result.updated ? `Feedback applied: ${label}` : `Feedback rejected: ${result.reason || 'unknown reason'}`);
+                loadAdaptiveStats();
+            } catch (error) {
+                showToast(`Feedback failed: ${error.message}`);
+            }
+        }
+
+        function showToast(message) {
+            toastEl.textContent = message;
+            toastEl.style.display = 'block';
+            clearTimeout(showToast._timeoutId);
+            showToast._timeoutId = setTimeout(() => {
+                toastEl.style.display = 'none';
+            }, 2500);
+        }
+
+        function updateCount() {
+            eventCountEl.textContent = `${visibleEvents} events shown`;
+        }
+
+        function matchesFilters(data) {
+            const severity = (data.severity || 'low').toLowerCase();
+            const severityFilter = severityFilterEl.value;
+            if (severityFilter !== 'all' && severity !== severityFilter) {
+                return false;
+            }
+
+            const query = eventSearchEl.value.trim().toLowerCase();
+            if (!query) {
+                return true;
+            }
+
+            const haystack = JSON.stringify({
+                event: data.event,
+                source_ip: data.source_ip,
+                attack_type: data.attack_type,
+                action: data.action,
+                severity: data.severity,
+                message: data.message,
+            }).toLowerCase();
+            return haystack.includes(query);
+        }
+
+        function renderKV(key, value) {
+            if (value === undefined || value === null || value === '') {
+                return '';
+            }
+            return `<div class="kv"><span class="k">${key}</span><span class="v">${value}</span></div>`;
+        }
+
+        refreshAdaptiveBtn.addEventListener('click', loadAdaptiveStats);
+        resetAdaptiveBtn.addEventListener('click', async () => {
+            if (!confirm('Reset adaptive learning memory?')) {
+                return;
+            }
+            try {
+                await fetch('http://localhost:8000/api/adaptive/reset', { method: 'POST' });
+                loadAdaptiveStats();
+            } catch (error) {
+                alert(`Reset failed: ${error.message}`);
+            }
+        });
+
+        togglePauseBtn.addEventListener('click', () => {
+            paused = !paused;
+            togglePauseBtn.textContent = paused ? 'Resume Stream' : 'Pause Stream';
+        });
+
+        toggleAutoscrollBtn.addEventListener('click', () => {
+            autoscroll = !autoscroll;
+            toggleAutoscrollBtn.textContent = `Autoscroll: ${autoscroll ? 'ON' : 'OFF'}`;
+        });
+
+        clearEventsBtn.addEventListener('click', () => {
+            eventsContainer.innerHTML = '<div class="empty-state" id="emptyState">Event view cleared. Waiting for new events...</div>';
+            visibleEvents = 0;
+            updateCount();
+        });
+
+        severityFilterEl.addEventListener('change', () => {
+            clearEventsBtn.click();
+        });
+        eventSearchEl.addEventListener('input', () => {
+            clearEventsBtn.click();
+        });
+
         function displayEvent(data) {
+            if (paused || !matchesFilters(data)) {
+                return;
+            }
             const severity = data.severity || 'low';
             const eventDiv = document.createElement('div');
             eventDiv.className = `event ${severity}`;
 
             const header = document.createElement('div');
             header.className = 'event-header';
+            const eventType = data.event || 'unknown';
+            const action = data.action || 'N/A';
             header.innerHTML = `
-                <span class="event-type">${data.event || 'unknown'}</span>
-                <span>${data.timestamp || ''}</span>
+                <div class="event-title">
+                    <span class="event-type">${eventType}</span>
+                    <span class="badge">${severity}</span>
+                    <span class="badge">${action}</span>
+                </div>
+                <span class="event-time">${data.timestamp || ''}</span>
             `;
 
             const body = document.createElement('div');
             body.className = 'event-body';
-            let bodyHtml = '';
-            for (const [key, value] of Object.entries(data)) {
-                if (key === 'event' || key === 'timestamp') continue;
-                let displayValue = value;
-                if (typeof value === 'object' && value !== null) {
-                    displayValue = JSON.stringify(value, null, 2);
-                }
-                bodyHtml += `<span class="event-key">${key}:</span> <span class="event-value">${displayValue}</span><br>`;
+
+            const summaryGrid = document.createElement('div');
+            summaryGrid.className = 'event-grid';
+            summaryGrid.innerHTML = [
+                renderKV('source_ip', data.source_ip),
+                renderKV('attack_type', data.attack_type),
+                renderKV('confidence', data.confidence),
+                renderKV('phase', data.phase),
+                renderKV('message', data.message),
+            ].join('');
+            body.appendChild(summaryGrid);
+
+            const details = document.createElement('details');
+            details.className = 'details';
+            details.innerHTML = `
+                <summary>View raw event payload</summary>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            body.appendChild(details);
+
+            const adaptive = data.agents?.adaptive;
+            const fingerprint = data.fingerprint || adaptive?.fingerprint;
+            if (fingerprint) {
+                const actions = document.createElement('div');
+                actions.className = 'feedback-actions';
+
+                const maliciousBtn = document.createElement('button');
+                maliciousBtn.textContent = 'Mark Malicious';
+                maliciousBtn.onclick = () => submitFeedback(fingerprint, 'malicious', data.source_ip);
+
+                const benignBtn = document.createElement('button');
+                benignBtn.textContent = 'Mark Benign';
+                benignBtn.onclick = () => submitFeedback(fingerprint, 'benign', data.source_ip);
+
+                const copyBtn = document.createElement('button');
+                copyBtn.textContent = 'Copy Fingerprint';
+                copyBtn.onclick = async () => {
+                    await navigator.clipboard.writeText(fingerprint);
+                    showToast('Fingerprint copied');
+                };
+
+                actions.appendChild(maliciousBtn);
+                actions.appendChild(benignBtn);
+                actions.appendChild(copyBtn);
+                body.appendChild(actions);
             }
-            body.innerHTML = bodyHtml;
 
             eventDiv.appendChild(header);
             eventDiv.appendChild(body);
             eventsContainer.insertBefore(eventDiv, eventsContainer.firstChild);
+            const empty = document.getElementById('emptyState');
+            if (empty) {
+                empty.remove();
+            }
+            visibleEvents += 1;
+            updateCount();
 
             if (eventsContainer.children.length > 100) {
                 eventsContainer.removeChild(eventsContainer.lastChild);
+                visibleEvents = Math.max(0, visibleEvents - 1);
+                updateCount();
+            }
+
+            if (autoscroll) {
+                eventsContainer.scrollTop = 0;
             }
         }
 
         connect();
+        loadAdaptiveStats();
     </script>
 </body>
 </html>

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Body, Query
 
 
 def build_api_router(get_state):
@@ -62,5 +62,48 @@ def build_api_router(get_state):
     @router.get("/agents")
     async def get_agent_scores() -> dict[str, Any]:
         return get_state().last_agent_scores
+
+    @router.get("/adaptive/stats")
+    async def get_adaptive_stats() -> dict[str, Any]:
+        return get_state().adaptive.stats()
+
+    @router.post("/adaptive/reset")
+    async def reset_adaptive_stats() -> dict[str, Any]:
+        state = get_state()
+        state.adaptive.reset()
+        payload = {
+            "event": "adaptive_reset",
+            "action": "RESET",
+            "message": "Adaptive learning memory reset",
+        }
+        state.siem.add_event(payload)
+        await state.ws.broadcast(payload)
+        return {"reset": True}
+
+    @router.post("/adaptive/feedback")
+    async def adaptive_feedback(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        state = get_state()
+        fingerprint = str(payload.get("fingerprint", "")).strip()
+        label = str(payload.get("label", "")).strip().lower()
+        source_ip = str(payload.get("source_ip", "unknown"))
+
+        if not fingerprint:
+            return {"updated": False, "reason": "fingerprint is required"}
+
+        result = state.adaptive.apply_feedback(fingerprint=fingerprint, label=label)
+
+        event_payload = {
+            "event": "adaptive_feedback",
+            "action": "UPDATED" if result.get("updated") else "REJECTED",
+            "source_ip": source_ip,
+            "fingerprint": fingerprint,
+            "label": label,
+            "message": "Analyst feedback applied" if result.get("updated") else result.get("reason", "feedback rejected"),
+            "severity": "low",
+            "details": result,
+        }
+        state.siem.add_event(event_payload)
+        await state.ws.broadcast(event_payload)
+        return result
 
     return router
