@@ -37,8 +37,10 @@ Attacker / Client
 
 ## Quick Start
 
-### 1. Install dependencies
+### 1. Create a virtual environment and install dependencies
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
@@ -71,6 +73,8 @@ It connects to `ws://localhost:8000/ws/soc` automatically.
 ---
 
 ## Live Attack Demo
+
+⚠️ **SAFETY**: Attack scripts are locked to `localhost` by default. Set `NG_ALLOW_ATTACK_DEMOS=1` and `NG_ATTACK_ALLOWLIST=your-staging-host` environment variables for authorized staging tests only.
 
 The `scripts/` folder contains attack scripts you can run against the proxy:
 
@@ -199,5 +203,59 @@ neural-gate/
 │   └── attack_all.py        # Run all attacks
 ├── config.py                # Root config
 ├── requirements.txt
+├── neural-gate-siem.html    # SOC Dashboard (WebSocket frontend)
 └── README.md
 ```
+
+---
+
+## Configuration & Advanced Usage
+
+### Environment Variables
+
+Create a `.env` file in the repository root to override defaults:
+
+```bash
+NG_ENVIRONMENT=production
+NG_TARGET_SERVER=http://localhost:3000
+NG_PROXY_HOST=0.0.0.0
+NG_PROXY_PORT=8000
+NG_REQUEST_TIMEOUT_SECONDS=15.0
+NG_MALICIOUS_THRESHOLD=0.85
+NG_ENTROPY_THRESHOLD=7.0
+NG_EXFILTRATION_ENTROPY_THRESHOLD=7.5
+NG_ENABLE_PHASE2_PCAP=false
+NG_BLOCKLIST_TTL_SECONDS=1800
+NG_DDOS_WINDOW_SECONDS=10
+NG_DDOS_MAX_REQUESTS=120
+
+# Attack demo safety controls (for testing only)
+NG_ALLOW_ATTACK_DEMOS=0
+NG_ATTACK_ALLOWLIST=localhost,127.0.0.1
+```
+
+### Microservices Deployment (Optional)
+
+The current implementation runs as a single FastAPI process. To split into independent services:
+
+1. **Proxy Gateway**: Keep `app/main.py` but remove pipeline/agent initialization.
+2. **Analytics Worker**: Run IDS/SIEM/SOAR pipeline with message queue (e.g. RabbitMQ, Redis Streams).
+3. **SOAR Service**: Extract `app/pipeline/soar.py` to standalone decision service.
+4. **Agents Service**: Extract `app/agents/` into inference pool with gRPC or REST API.
+
+### Phase-2 PCAP Integration
+
+Currently, the system uses HTTP-level feature extraction (`app/pipeline/pcap_capture.py` → `extract_request_features`).
+
+To enable real packet capture:
+
+1. Set `NG_ENABLE_PHASE2_PCAP=true` in `.env`.
+2. Implement a packet capture backend in `pcap_capture.py` using `scapy` or `pyshark`.
+3. Extract raw bytes before FastAPI framework sees the request (via middleware or raw socket layer).
+4. Map captured packets to session/flow tracking for temporal GRU agent.
+
+---
+
+## License
+
+MIT License - use at your own risk. This is a defensive security research project.

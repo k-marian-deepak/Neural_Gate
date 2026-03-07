@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural-Gate SIEM Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Consolas', 'Courier New', monospace;
+            background: #0a0e1a;
+            color: #00ff88;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #00ff88;
+            text-shadow: 0 0 10px #00ff88;
+        }
+        .status {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .connected { color: #00ff88; }
+        .disconnected { color: #ff4444; }
+        .events {
+            max-width: 1200px;
+            margin: 0 auto;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 2px solid #00ff88;
+            padding: 10px;
+            background: #0d1117;
+        }
+        .event {
+            border-left: 4px solid;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #161b22;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        .event.critical { border-left-color: #ff0044; }
+        .event.high { border-left-color: #ff8800; }
+        .event.medium { border-left-color: #ffdd00; }
+        .event.low { border-left-color: #00ff88; }
+        .event-header {
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        .event-type {
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .event-body { color: #aabbcc; }
+        .event-key { color: #00ddff; }
+        .event-value { color: #ffffff; }
+    </style>
+</head>
+<body>
+    <h1>🛡️ NEURAL-GATE SOC DASHBOARD 2026</h1>
+    <div class="status">
+        <span id="status" class="disconnected">DISCONNECTED</span>
+    </div>
+    <div class="events" id="events"></div>
+
+    <script>
+        const eventsContainer = document.getElementById('events');
+        const statusEl = document.getElementById('status');
+        let ws;
+
+        function connect() {
+            ws = new WebSocket('ws://localhost:8000/ws/soc');
+
+            ws.onopen = () => {
+                statusEl.textContent = 'CONNECTED';
+                statusEl.className = 'connected';
+            };
+
+            ws.onmessage = (evt) => {
+                const data = JSON.parse(evt.data);
+                displayEvent(data);
+            };
+
+            ws.onerror = () => {
+                statusEl.textContent = 'ERROR';
+                statusEl.className = 'disconnected';
+            };
+
+            ws.onclose = () => {
+                statusEl.textContent = 'DISCONNECTED - RECONNECTING...';
+                statusEl.className = 'disconnected';
+                setTimeout(connect, 2000);
+            };
+        }
+
+        function displayEvent(data) {
+            const severity = data.severity || 'low';
+            const eventDiv = document.createElement('div');
+            eventDiv.className = `event ${severity}`;
+
+            const header = document.createElement('div');
+            header.className = 'event-header';
+            header.innerHTML = `
+                <span class="event-type">${data.event || 'unknown'}</span>
+                <span>${data.timestamp || ''}</span>
+            `;
+
+            const body = document.createElement('div');
+            body.className = 'event-body';
+            let bodyHtml = '';
+            for (const [key, value] of Object.entries(data)) {
+                if (key === 'event' || key === 'timestamp') continue;
+                let displayValue = value;
+                if (typeof value === 'object' && value !== null) {
+                    displayValue = JSON.stringify(value, null, 2);
+                }
+                bodyHtml += `<span class="event-key">${key}:</span> <span class="event-value">${displayValue}</span><br>`;
+            }
+            body.innerHTML = bodyHtml;
+
+            eventDiv.appendChild(header);
+            eventDiv.appendChild(body);
+            eventsContainer.insertBefore(eventDiv, eventsContainer.firstChild);
+
+            if (eventsContainer.children.length > 100) {
+                eventsContainer.removeChild(eventsContainer.lastChild);
+            }
+        }
+
+        connect();
+    </script>
+</body>
+</html>
