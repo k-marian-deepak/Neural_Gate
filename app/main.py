@@ -98,6 +98,27 @@ app = FastAPI(title="Neural Gate", version="2026")
 app.state.runtime = build_state()
 
 
+@app.on_event("startup")
+async def startup_event():
+    """Application startup"""
+    print(f"[Neural-Gate] Starting up...")
+    print(f"[Neural-Gate] Target server: {settings.target_server}")
+    print(f"[Neural-Gate] Phase 2 PCAP: {'ENABLED' if settings.enable_phase2_pcap else 'DISABLED'}")
+    if settings.enable_phase2_pcap:
+        print(f"[Neural-Gate] PCAP Interface: {settings.pcap_interface}")
+        print(f"[Neural-Gate] PCAP Filter: {settings.pcap_filter}")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Application shutdown - clean up PCAP capture"""
+    print("[Neural-Gate] Shutting down...")
+    state = _state()
+    if hasattr(state.capture, 'shutdown'):
+        state.capture.shutdown()
+    print("[Neural-Gate] Shutdown complete")
+
+
 def _state() -> RuntimeState:
     return app.state.runtime
 
@@ -122,9 +143,10 @@ def _proxy_target(full_path: str, query: str) -> str:
 
 @app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"])
 async def proxy_all(full_path: str, request: Request):
-    if full_path.startswith("api") or full_path.startswith("ws") or full_path.startswith("health"):
-        return JSONResponse({"detail": "Not found"}, status_code=404)
-
+    # Skip Neural-Gate's own API routes (they're already registered)
+    # This prevents infinite loops on /api/*, /ws/*, /health
+    # But we DO want to proxy backend routes like /api/login -> backend
+    
     state = _state()
     source_ip = get_source_ip(request)
 

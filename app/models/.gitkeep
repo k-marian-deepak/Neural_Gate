@@ -1,0 +1,2 @@
+# app/models directory for trained model artifacts
+# Models are gitignored but this keeps the directory in version control

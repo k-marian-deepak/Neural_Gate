@@ -35,6 +35,34 @@ Attacker / Client
 
 ---
 
+## Features
+
+### Core Capabilities
+- **Reverse Proxy**: Forwards traffic from clients to your target backend server
+- **Ingress Pipeline**: Analyzes incoming requests with multi-stage inspection
+- **IDS Engine**: Signature-based detection (SQLi, XSS, DDoS, path traversal, etc.)
+- **CNN Detection**: Deep learning PyTorch model for threat classification
+- **SIEM Logging**: Event storage, correlation, and search
+- **SOAR Automation**: Automated threat response (blocking, alerting, playbooks)
+- **Egress Pipeline**: Response analysis for data exfiltration detection
+- **Blocklist API**: Auto-blocking of malicious IPs with configurable TTL
+
+### AI Components
+- **Dual AI Agents**: Reflex (reactive) and Planning (proactive) agents
+- **Pre-trained Model**: PyTorch CNN+GRU model ready to use
+- **RESTful API**: Full CRUD for IDS rules, SOAR policies, SIEM events, blocklist
+- **SOC Dashboard**: Real-time WebSocket event monitoring at `/soc`
+
+### Phase 2 PCAP (Advanced)
+- **Raw Packet Capture**: Uses Scapy for network-level inspection
+- **BPF Filtering**: Efficient packet filtering at capture time
+- **PCAP Export**: Save traffic dumps for forensic analysis
+- **TCP/IP Analysis**: Layer 3/4 network traffic inspection
+
+📖 **[Phase 2 Setup Guide](PHASE2_PCAP.md)** | 🔧 **[Quick Start Script](start_phase2.sh)** | ✅ **[Verification Tool](verify_phase2.py)** | 📋 **[Quick Reference](PHASE2_QUICKREF.md)**
+
+---
+
 ## Quick Start
 
 ### 1. Create a virtual environment and install dependencies
@@ -61,6 +89,8 @@ PROXY_PORT    = 8000
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+**Note:** For Phase 2 PCAP capture, see [PHASE2_PCAP.md](PHASE2_PCAP.md) for setup instructions.
 
 ### 5. Point your clients at port 8000
 Instead of hitting `http://your-server:3000` directly,
@@ -210,6 +240,19 @@ neural-gate/
 ---
 
 ## Configuration & Advanced Usage
+
+### Phase 1 vs Phase 2
+
+**Phase 1 (HTTP-level):** Default mode, analyzes HTTP requests/responses
+**Phase 2 (PCAP):** Advanced mode with raw packet capture
+
+Enable Phase 2:
+```bash
+export NG_ENABLE_PHASE2_PCAP=true
+export NG_PCAP_INTERFACE=lo  # or eth0, wlan0, etc.
+```
+
+See [PHASE2_PCAP.md](PHASE2_PCAP.md) for complete Phase 2 documentation.
 
 ### Environment Variables
 

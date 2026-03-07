@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     exfiltration_entropy_threshold: float = 7.5
 
     enable_phase2_pcap: bool = False
+    pcap_interface: str = "lo"  # Network interface for packet capture (lo, eth0, wlan0, etc.)
+    pcap_filter: str = "tcp port 8000"  # BPF filter for packet capture
+    pcap_save_enabled: bool = False  # Save PCAP files to disk
+    pcap_save_path: str = "pcap_dumps"  # Directory for PCAP files
+    
     blocklist_ttl_seconds: int = 1800
     ddos_window_seconds: int = 10
     ddos_max_requests: int = 120

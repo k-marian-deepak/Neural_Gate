@@ -7,3 +7,6 @@ python-multipart>=0.0.9
 numpy>=2.0.0
 torch>=2.3.0
 requests>=2.32.0
+flask>=3.0.0
+scapy>=2.5.0
+pyshark>=0.6
