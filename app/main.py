@@ -57,7 +57,7 @@ class RuntimeState:
 
 
 def build_state() -> RuntimeState:
-    siem = SIEMStore()
+    siem = SIEMStore(blocklist_persist_path=settings.blocklist_persist_path)
     ws = SOCWebSocketManager()
     model = InferenceModel(settings.model_path)
     return RuntimeState(

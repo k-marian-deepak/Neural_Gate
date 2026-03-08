@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="NG_", extra="ignore")
 
     environment: str = "dev"
-    target_server: str = "http://localhost:3000"
+    target_server: str = "http://localhost:3001"
     proxy_host: str = "0.0.0.0"
     proxy_port: int = 8000
 
@@ -27,11 +27,12 @@ class Settings(BaseSettings):
 
     enable_phase2_pcap: bool = False
     pcap_interface: str = "lo"  # Network interface for packet capture (lo, eth0, wlan0, etc.)
-    pcap_filter: str = "tcp port 8000"  # BPF filter for packet capture
+    pcap_filter: str = "tcp and (port 8000 or port 3001)"  # BPF filter for packet capture
     pcap_save_enabled: bool = False  # Save PCAP files to disk
     pcap_save_path: str = "pcap_dumps"  # Directory for PCAP files
     
     blocklist_ttl_seconds: int = 1800
+    blocklist_persist_path: str = "app/models/blocklist.json"
     ddos_window_seconds: int = 10
     ddos_max_requests: int = 120
 

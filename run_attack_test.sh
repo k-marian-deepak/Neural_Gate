@@ -6,7 +6,7 @@ echo "=================================================="
 echo "Neural-Gate End-to-End Attack Test Suite"
 echo "=================================================="
 
-BASE_URL="${NG_ATTACK_BASE_URL:-http://127.0.0.1:3000}"
+BASE_URL="${NG_ATTACK_BASE_URL:-http://127.0.0.1:8000}"
 
 print_test() {
     echo ""

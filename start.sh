@@ -16,18 +16,19 @@ fi
 echo "[*] Ensuring Flask is installed..."
 pip install flask -q
 
-echo "[*] Recovering ports 8000/3000 (Error 98 prevention)..."
-bash scripts/fix_error_98.sh 8000 3000 >/dev/null 2>&1 || true
+echo "[*] Recovering ports 8000/3001 (Error 98 prevention)..."
+bash scripts/fix_error_98.sh 8000 3001 >/dev/null 2>&1 || true
 
 echo ""
 echo "========================================"
 echo "Starting Neural-Gate Test Environment"
 echo "========================================"
 echo ""
-echo "This will start 3 terminals:"
-echo "  1. Vulnerable Test Server (port 3000)"
+echo "This will start 2 terminals:"
+echo "  1. Vulnerable Test Server (port 3001)"
 echo "  2. Neural-Gate Proxy (port 8000)"
-echo "  3. Attack Test Suite"
+echo ""
+echo "Attack tests target port 8000 directly"
 echo ""
 echo "Press Ctrl+C in any terminal to stop"
 echo ""
