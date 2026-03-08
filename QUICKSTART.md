@@ -1,153 +1,61 @@
-# Quick Start: Attack Neural-Gate in 3 Steps
+# Quick Start (Current Architecture)
 
-## ⚡ Fastest Path (3 Terminals)
+This project now defaults to transparent MITM mode:
 
-### Terminal 1: Start Vulnerable Server
+- Public target (attacker/user hits): `127.0.0.1:3000`
+- Neural-Gate proxy: `127.0.0.1:8000`
+- Real vulnerable backend: `127.0.0.1:3001`
+
+## Fastest Start
+
 ```bash
 cd /home/deepak/Desktop/Neural_Gate
-source .venv/bin/activate
-python test_server.py
-```
-**Wait for:** `Running on http://127.0.0.1:3000`
-
----
-
-### Terminal 2: Start Neural-Gate Proxy
-```bash
-cd /home/deepak/Desktop/Neural_Gate
-source .venv/bin/activate
-export NG_TARGET_SERVER=http://localhost:3000
-uvicorn app.main:app --host 127.0.0.1 --port 8000
-```
-**Wait for:** `Uvicorn running on http://127.0.0.1:8000`
-
----
-
-### Terminal 3: Launch Attacks
-```bash
-cd /home/deepak/Desktop/Neural_Gate
-source .venv/bin/activate
-./run_attack_test.sh
+chmod +x start_transparent.sh scripts/*.sh run_attack_test.sh
+./start_transparent.sh
 ```
 
----
+Run attacks against the public app port (not proxy):
 
-## 📊 Monitor Results
-
-### SOC Dashboard (Real-time)
 ```bash
-# Open in browser
-xdg-open neural-gate-siem.html
-# or manually: firefox neural-gate-siem.html
+NG_ATTACK_BASE_URL=http://127.0.0.1:3000 ./run_attack_test.sh
 ```
 
-### API Endpoints
+## Validate Pipeline
+
 ```bash
-# Stats
-curl http://127.0.0.1:8000/api/stats
-
-# Blocked IPs
-curl http://127.0.0.1:8000/api/blocklist
-
-# Agent Scores
-curl http://127.0.0.1:8000/api/agents
-
-# Recent Logs
-curl http://127.0.0.1:8000/api/logs
+curl http://127.0.0.1:3000/health      # attacker-facing (redirected)
+curl http://127.0.0.1:8000/health      # proxy
+curl http://127.0.0.1:3001/health      # backend direct
 ```
 
----
+## Manual Adaptive Feedback (RL-style)
 
-## 🎯 Manual Attack Examples
+You can manually mark a fingerprint as `legit` or `malicious`:
 
-### SQLi: Login Bypass
 ```bash
-curl -X POST http://127.0.0.1:8000/api/login \
+# 1) Pull recent events and copy a fingerprint value
+curl "http://127.0.0.1:8000/api/siem/events?limit=20"
+
+# 2) Send analyst feedback
+curl -X POST http://127.0.0.1:8000/api/adaptive/feedback \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin'"'"' OR 1=1 --","password":"x"}'
+  -d '{"fingerprint":"<PASTE_FINGERPRINT>","label":"legit","source_ip":"127.0.0.1"}'
+
+# 3) Check adaptive learning stats
+curl http://127.0.0.1:8000/api/adaptive/stats
 ```
-**Expected:** `403 Forbidden` + `threat_blocked` event
 
----
+Dashboard also supports this workflow via event actions.
 
-### SQLi: Search Injection
+## Error 98 Recovery
+
 ```bash
-curl "http://127.0.0.1:8000/api/search?q=test' OR 1=1 --"
+bash scripts/fix_error_98.sh 8000 3000 3001
+sudo fuser -k 8000/tcp 3000/tcp 3001/tcp
 ```
-**Expected:** `403 Forbidden` + IDS alert
 
----
+## Disable Transparent Redirect
 
-### XSS: Script Injection
 ```bash
-curl -X POST http://127.0.0.1:8000/api/comment \
-  -H "Content-Type: application/json" \
-  -d '{"text":"<script>alert(1)</script>"}'
+sudo bash scripts/transparent_off.sh 3000 8000
 ```
-**Expected:** `403 Forbidden` + XSS detection
-
----
-
-### Data Exfiltration
-```bash
-curl http://127.0.0.1:8000/api/export
-```
-**Expected:** May return `451` on egress inspection
-
----
-
-### DDoS Flood
-```bash
-for i in {1..150}; do curl http://127.0.0.1:8000/health & done
-wait
-```
-**Expected:** `403 Forbidden` after exceeding rate limit
-
----
-
-## 🔧 Troubleshooting
-
-### Connection Refused?
-Check both servers are running:
-```bash
-curl http://127.0.0.1:3000/health  # Test server
-curl http://127.0.0.1:8000/health  # Proxy
-```
-
-### IP Blocked?
-Unblock yourself:
-```bash
-curl -X DELETE http://127.0.0.1:8000/api/blocklist/127.0.0.1
-```
-
-### Kill Switch Active?
-Disable it:
-```bash
-curl -X DELETE http://127.0.0.1:8000/api/killswitch
-```
-
----
-
-## 📈 Expected Results
-
-| Attack | Response | SIEM Event | Severity |
-|--------|----------|------------|----------|
-| SQLi Login | 403 | `threat_blocked` | Critical |
-| SQLi Search | 403 | `ids_alert` | Critical |
-| XSS | 403 | `threat_blocked` | High |
-| Exfil | 451 | `reply_denied` | High |
-| DDoS | 403 | `threat_blocked` | Critical |
-
----
-
-## 🧪 Full Test Suite
-```bash
-./run_attack_test.sh
-```
-
-This runs all attacks automatically and shows results.
-
----
-
-## 📖 Detailed Guide
-See [ATTACK_GUIDE.md](ATTACK_GUIDE.md) for comprehensive documentation.

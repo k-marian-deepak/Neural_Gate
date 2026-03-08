@@ -6,6 +6,7 @@ Database: SQLite (no external deps)
 
 from flask import Flask, request, jsonify
 import sqlite3
+import os
 from datetime import datetime
 
 app = Flask(__name__)
@@ -223,12 +224,16 @@ def catch_all(path):
 
 
 if __name__ == '__main__':
+    host = os.getenv("NG_VULN_SERVER_HOST", os.getenv("NG_VULN_HOST", "127.0.0.1"))
+    port = int(os.getenv("NG_VULN_SERVER_PORT", os.getenv("NG_VULN_PORT", "3001")))
+    debug = os.getenv("NG_VULN_SERVER_DEBUG", "false").lower() == "true"
+
     print("[*] Initializing database...")
     init_db()
     
-    print("[*] Starting Vulnerable Test Server on http://127.0.0.1:3000")
+    print(f"[*] Starting Vulnerable Test Server on http://{host}:{port}")
     print("[!] WARNING: This app has intentional security flaws for testing ONLY")
     print("[!] Do NOT use in production or expose to untrusted networks")
     print()
     
-    app.run(host='127.0.0.1', port=3000, debug=False, use_reloader=False)
+    app.run(host=host, port=port, debug=debug, use_reloader=False)

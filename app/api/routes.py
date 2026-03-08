@@ -106,4 +106,15 @@ def build_api_router(get_state):
         await state.ws.broadcast(event_payload)
         return result
 
+    @router.get("/siem/events")
+    async def get_siem_events(
+        limit: int = Query(default=100, ge=1, le=1000),
+        offset: int = Query(default=0, ge=0),
+        attack_type: str | None = Query(default=None, alias="type"),
+        severity: str | None = Query(default=None, alias="sev"),
+    ) -> list[dict[str, Any]]:
+        """Get SIEM events from the event store"""
+        state = get_state()
+        return state.siem.get_logs(attack_type=attack_type, severity=severity, limit=limit, offset=offset)
+
     return router

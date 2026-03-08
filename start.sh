@@ -16,6 +16,9 @@ fi
 echo "[*] Ensuring Flask is installed..."
 pip install flask -q
 
+echo "[*] Recovering ports 8000/3000 (Error 98 prevention)..."
+bash scripts/fix_error_98.sh 8000 3000 >/dev/null 2>&1 || true
+
 echo ""
 echo "========================================"
 echo "Starting Neural-Gate Test Environment"
@@ -51,7 +54,7 @@ else
     echo "Terminal 2:"
     echo "  cd /home/deepak/Desktop/Neural_Gate"
     echo "  source .venv/bin/activate"
-    echo "  export NG_TARGET_SERVER=http://localhost:3000"
+    echo "  export NG_TARGET_SERVER=http://localhost:3001"
     echo "  uvicorn app.main:app --host 127.0.0.1 --port 8000"
     echo ""
     echo "Terminal 3:"
@@ -70,7 +73,7 @@ $TERM_CMD bash -c "cd /home/deepak/Desktop/Neural_Gate && source .venv/bin/activ
 sleep 2
 
 echo "[*] Starting Neural-Gate proxy..."
-$TERM_CMD bash -c "cd /home/deepak/Desktop/Neural_Gate && source .venv/bin/activate && export NG_TARGET_SERVER=http://localhost:3000 && uvicorn app.main:app --host 127.0.0.1 --port 8000; bash" &
+$TERM_CMD bash -c "cd /home/deepak/Desktop/Neural_Gate && source .venv/bin/activate && export NG_TARGET_SERVER=http://localhost:3001 && uvicorn app.main:app --host 127.0.0.1 --port 8000; bash" &
 
 sleep 3
 
@@ -89,7 +92,7 @@ echo "Environment Ready!"
 echo "========================================"
 echo ""
 echo "Next steps:"
-echo "  1. Check that test server is running on http://127.0.0.1:3000"
+echo "  1. Check that test server is running on http://127.0.0.1:3001"
 echo "  2. Check that proxy is running on http://127.0.0.1:8000"
 echo "  3. Verify SOC dashboard shows 'CONNECTED'"
 echo "  4. Run attack tests: ./run_attack_test.sh"

@@ -81,13 +81,18 @@ This generates `app/models/neural_gate_cnn.pt`
 ### 3. Configure your target server
 Edit `config.py`:
 ```python
-TARGET_SERVER = "http://localhost:3000"   # your actual backend
+TARGET_SERVER = "http://localhost:3001"   # internal backend in transparent mode
 PROXY_PORT    = 8000
 ```
 
 ### 4. Run the proxy
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+If startup fails with `Errno 98` (address already in use):
+```bash
+bash scripts/fix_error_98.sh 8000 3000 3001
 ```
 
 **Note:** For Phase 2 PCAP capture, see [PHASE2_PCAP.md](PHASE2_PCAP.md) for setup instructions.
@@ -103,6 +108,33 @@ It connects to `ws://localhost:8000/ws/soc` automatically.
 ---
 
 ## Live Attack Demo
+
+### Transparent MITM Mode (real-world style)
+
+In this mode, attackers target the vulnerable app port (`3000`), but traffic is invisibly redirected through Neural-Gate:
+
+- Public attack target: `127.0.0.1:3000`
+- Neural-Gate proxy: `127.0.0.1:8000`
+- Real backend app: `127.0.0.1:3001`
+
+Start transparent mode:
+
+```bash
+chmod +x start_transparent.sh scripts/transparent_on.sh scripts/transparent_off.sh
+./start_transparent.sh
+```
+
+Run attacks against the public app port (not the proxy):
+
+```bash
+NG_ATTACK_BASE_URL=http://127.0.0.1:3000 ./run_attack_test.sh
+```
+
+Disable transparent redirect when done:
+
+```bash
+sudo bash scripts/transparent_off.sh 3000 8000
+```
 
 ⚠️ **SAFETY**: Attack scripts are locked to `localhost` by default. Set `NG_ALLOW_ATTACK_DEMOS=1` and `NG_ATTACK_ALLOWLIST=your-staging-host` environment variables for authorized staging tests only.
 
@@ -125,6 +157,37 @@ python scripts/attack_exfil.py
 python scripts/attack_all.py
 ```
 
+Or use the end-to-end attack runner:
+```bash
+# Through transparent public app port (recommended)
+NG_ATTACK_BASE_URL=http://127.0.0.1:3000 ./run_attack_test.sh
+
+# Directly through Neural-Gate proxy (debug mode)
+NG_ATTACK_BASE_URL=http://127.0.0.1:8000 ./run_attack_test.sh
+
+# Directly against vulnerable server (comparison mode)
+NG_ATTACK_BASE_URL=http://127.0.0.1:3001 ./run_attack_test.sh
+```
+
+Manual analyst feedback (adaptive RL-style learning):
+```bash
+# Inspect recent events and copy a fingerprint value
+curl "http://127.0.0.1:8000/api/siem/events?limit=50"
+
+# Mark traffic pattern as legit
+curl -X POST http://127.0.0.1:8000/api/adaptive/feedback \
+  -H "Content-Type: application/json" \
+  -d '{"fingerprint":"<PASTE_FINGERPRINT>","label":"legit","source_ip":"127.0.0.1"}'
+
+# Mark traffic pattern as malicious
+curl -X POST http://127.0.0.1:8000/api/adaptive/feedback \
+  -H "Content-Type: application/json" \
+  -d '{"fingerprint":"<PASTE_FINGERPRINT>","label":"malicious","source_ip":"127.0.0.1"}'
+
+# Check adaptive memory stats
+curl http://127.0.0.1:8000/api/adaptive/stats
+```
+
 ---
 
 ## REST API
@@ -140,6 +203,10 @@ python scripts/attack_all.py
 | POST   | /api/killswitch       | Kill all traffic                   |
 | DELETE | /api/killswitch       | Re-enable traffic                  |
 | GET    | /api/agents           | Current CNN agent scores           |
+| GET    | /api/siem/events      | SIEM event stream (REST view)      |
+| GET    | /api/adaptive/stats   | Adaptive learning memory stats     |
+| POST   | /api/adaptive/feedback| Manual analyst feedback (legit/malicious) |
+| POST   | /api/adaptive/reset   | Reset adaptive memory/state        |
 | GET    | /health               | Health check                       |
 
 ---
@@ -260,7 +327,7 @@ Create a `.env` file in the repository root to override defaults:
 
 ```bash
 NG_ENVIRONMENT=production
-NG_TARGET_SERVER=http://localhost:3000
+NG_TARGET_SERVER=http://localhost:3001
 NG_PROXY_HOST=0.0.0.0
 NG_PROXY_PORT=8000
 NG_REQUEST_TIMEOUT_SECONDS=15.0
@@ -268,6 +335,12 @@ NG_MALICIOUS_THRESHOLD=0.85
 NG_ENTROPY_THRESHOLD=7.0
 NG_EXFILTRATION_ENTROPY_THRESHOLD=7.5
 NG_ENABLE_PHASE2_PCAP=false
+NG_ENABLE_ADAPTIVE_LEARNING=true
+NG_ADAPTIVE_LEARNING_RATE=0.15
+NG_ADAPTIVE_INFLUENCE=0.12
+NG_ADAPTIVE_MEMORY_SIZE=5000
+NG_ADAPTIVE_PERSIST_PATH=app/models/adaptive_memory.json
+NG_ADAPTIVE_AUTOSAVE_EVERY=50
 NG_BLOCKLIST_TTL_SECONDS=1800
 NG_DDOS_WINDOW_SECONDS=10
 NG_DDOS_MAX_REQUESTS=120

@@ -8,54 +8,23 @@
 
 ---
 
-## STEP 1: Start the Vulnerable Test Server
+## STEP 1: Start in Transparent MITM Mode (recommended)
 
 ```bash
-# Terminal 1
 cd /home/deepak/Desktop/Neural_Gate
 source .venv/bin/activate
-python test_server.py
+./start_transparent.sh
 ```
 
-**Expected Output:**
-```
-[*] Initializing database...
-[*] Starting Vulnerable Test Server on http://127.0.0.1:3000
-[!] WARNING: This app has intentional security flaws for testing ONLY
- * Running on http://127.0.0.1:3000
-```
+This starts the current architecture:
 
-**Leave this terminal running.**
+- Public port (attacker target): `127.0.0.1:3000`
+- Neural-Gate proxy: `127.0.0.1:8000`
+- Vulnerable backend: `127.0.0.1:3001`
 
 ---
 
-## STEP 2: Start Neural-Gate Proxy
-
-```bash
-# Terminal 2
-cd /home/deepak/Desktop/Neural_Gate
-source .venv/bin/activate
-
-# Configure target
-export NG_TARGET_SERVER=http://localhost:3000
-
-# Start proxy
-uvicorn app.main:app --host 127.0.0.1 --port 8000
-```
-
-**Expected Output:**
-```
-INFO:     Started server process
-INFO:     Uvicorn running on http://127.0.0.1:8000
-INFO:     Application startup complete
-```
-
-**Leave this terminal running.**
-
----
-
-## STEP 3: Open SOC Dashboard (Optional but Recommended)
-
+## STEP 2: Open SOC Dashboard (Optional but Recommended)
 Open `neural-gate-siem.html` in your browser:
 ```bash
 # In a new terminal
@@ -69,7 +38,7 @@ You should see **"CONNECTED"** status and a live event feed.
 
 ---
 
-## STEP 4: Run Attacks
+## STEP 3: Run Attacks (hit public port 3000)
 
 ### Option A: Automated Test Suite
 
@@ -78,7 +47,7 @@ You should see **"CONNECTED"** status and a live event feed.
 cd /home/deepak/Desktop/Neural_Gate
 source .venv/bin/activate
 chmod +x run_attack_test.sh
-./run_attack_test.sh
+NG_ATTACK_BASE_URL=http://127.0.0.1:3000 ./run_attack_test.sh
 ```
 
 ### Option B: Manual Attack Commands
@@ -87,7 +56,7 @@ chmod +x run_attack_test.sh
 
 ```bash
 # This should be BLOCKED by Neural-Gate
-curl -X POST http://127.0.0.1:8000/api/login \
+curl -X POST http://127.0.0.1:3000/api/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin'"'"' OR 1=1 --","password":"x"}'
 ```
@@ -102,7 +71,7 @@ curl -X POST http://127.0.0.1:8000/api/login \
 #### Attack 2: SQL Injection (Search)
 
 ```bash
-curl "http://127.0.0.1:8000/api/search?q=test' OR 1=1 --"
+curl "http://127.0.0.1:3000/api/search?q=test' OR 1=1 --"
 ```
 
 **Expected Result:**
@@ -115,7 +84,7 @@ curl "http://127.0.0.1:8000/api/search?q=test' OR 1=1 --"
 #### Attack 3: XSS (Cross-Site Scripting)
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/comment \
+curl -X POST http://127.0.0.1:3000/api/comment \
   -H "Content-Type: application/json" \
   -d '{"post_id":1,"user_id":1,"text":"<script>alert(document.cookie)</script>"}'
 ```
@@ -130,7 +99,7 @@ curl -X POST http://127.0.0.1:8000/api/comment \
 #### Attack 4: Information Exfiltration
 
 ```bash
-curl http://127.0.0.1:8000/api/export
+curl http://127.0.0.1:3000/api/export
 ```
 
 **Expected Result:**
@@ -144,7 +113,7 @@ curl http://127.0.0.1:8000/api/export
 
 ```bash
 for i in {1..150}; do 
-    curl http://127.0.0.1:8000/health &
+    curl http://127.0.0.1:3000/health &
 done
 wait
 ```
@@ -156,7 +125,7 @@ wait
 
 ---
 
-## STEP 5: Monitor Results
+## STEP 4: Monitor Results
 
 ### Check Neural-Gate Stats
 
@@ -231,13 +200,35 @@ curl http://127.0.0.1:8000/api/agents
 
 ---
 
+## STEP 5: Manual Adaptive Feedback (legit/not legit)
+
+```bash
+# 1) Get recent events and pick a fingerprint
+curl "http://127.0.0.1:8000/api/siem/events?limit=50"
+
+# 2) Mark as legit
+curl -X POST http://127.0.0.1:8000/api/adaptive/feedback \
+  -H "Content-Type: application/json" \
+  -d '{"fingerprint":"<PASTE_FINGERPRINT>","label":"legit","source_ip":"127.0.0.1"}'
+
+# 3) Mark as malicious
+curl -X POST http://127.0.0.1:8000/api/adaptive/feedback \
+  -H "Content-Type: application/json" \
+  -d '{"fingerprint":"<PASTE_FINGERPRINT>","label":"malicious","source_ip":"127.0.0.1"}'
+
+# 4) Verify adaptive stats
+curl http://127.0.0.1:8000/api/adaptive/stats
+```
+
+---
+
 ## STEP 6: Advanced Attack Scenarios
 
 ### Scenario 1: Bypass Attempt with Encoding
 
 ```bash
 # URL-encoded SQLi
-curl -X POST http://127.0.0.1:8000/api/login \
+curl -X POST http://127.0.0.1:3000/api/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin%27%20OR%201=1%20--","password":"x"}'
 ```
@@ -245,7 +236,7 @@ curl -X POST http://127.0.0.1:8000/api/login \
 ### Scenario 2: Union-Based SQLi
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/login \
+curl -X POST http://127.0.0.1:3000/api/login \
   -H "Content-Type: application/json" \
   -d '{"username":"x'"'"' UNION SELECT 1,2,3 --","password":"x"}'
 ```
@@ -253,7 +244,7 @@ curl -X POST http://127.0.0.1:8000/api/login \
 ### Scenario 3: XSS with Event Handlers
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/comment \
+curl -X POST http://127.0.0.1:3000/api/comment \
   -H "Content-Type: application/json" \
   -d '{"text":"<img src=x onerror=alert(1)>"}'
 ```
@@ -261,8 +252,8 @@ curl -X POST http://127.0.0.1:8000/api/comment \
 ### Scenario 4: Path Traversal
 
 ```bash
-curl http://127.0.0.1:8000/api/user/1
-curl http://127.0.0.1:8000/api/user/2
+curl http://127.0.0.1:3000/api/user/1
+curl http://127.0.0.1:3000/api/user/2
 ```
 
 ---
@@ -316,12 +307,13 @@ curl -X DELETE http://127.0.0.1:8000/api/blocklist/127.0.0.1
 ## Troubleshooting
 
 ### "Connection refused" errors
-- Ensure test_server.py is running on port 3000
-- Ensure Neural-Gate proxy is running on port 8000
+- Ensure backend is running on `127.0.0.1:3001`
+- Ensure Neural-Gate proxy is running on `127.0.0.1:8000`
+- Ensure transparent redirect exists for `3000 -> 8000`
 
 ### All requests return 502
 - Check `NG_TARGET_SERVER` is set correctly
-- Verify test server is accessible: `curl http://localhost:3000/health`
+- Verify backend is accessible: `curl http://localhost:3001/health`
 
 ### No events in SOC dashboard
 - Refresh browser page

@@ -339,7 +339,7 @@ NG_PCAP_INTERFACE=lo
 NG_PCAP_FILTER=tcp port 8000
 NG_PCAP_SAVE_ENABLED=true
 NG_PCAP_SAVE_PATH=pcap_dumps
-NG_TARGET_SERVER=http://localhost:3000
+NG_TARGET_SERVER=http://localhost:3001
 EOF
 
 # 3. Grant permissions

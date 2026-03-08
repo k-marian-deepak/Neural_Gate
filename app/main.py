@@ -21,6 +21,7 @@ from app.config import settings
 from app.pipeline.ids_engine import IDSEngine
 from app.pipeline.pcap_capture import CaptureAdapter
 from app.pipeline.adaptive_policy import AdaptivePolicy
+from app.pipeline.response_inspector import ResponseInspector
 from app.pipeline.siem import SIEMStore
 from app.pipeline.soar import SOAREngine
 
@@ -50,6 +51,7 @@ class RuntimeState:
     gru_agent: GRUTemporalAgent
     entropy_agent: EntropyAgent
     egress_agent: EgressAgent
+    response_inspector: ResponseInspector
     adaptive: AdaptivePolicy
     last_agent_scores: dict[str, Any] = field(default_factory=dict)
 
@@ -69,6 +71,7 @@ def build_state() -> RuntimeState:
         gru_agent=GRUTemporalAgent(),
         entropy_agent=EntropyAgent(),
         egress_agent=EgressAgent(model),
+        response_inspector=ResponseInspector(max_response_size=50 * 1024 * 1024),  # 50MB limit
         adaptive=AdaptivePolicy(
             enabled=settings.enable_adaptive_learning,
             learning_rate=settings.adaptive_learning_rate,
@@ -310,6 +313,51 @@ async def proxy_all(full_path: str, request: Request):
     upstream_content = upstream.content
     resp_features = state.capture.extract_response_features(upstream.status_code, dict(upstream.headers), upstream_content)
     egress_score = state.egress_agent.score(upstream_content[: settings.max_body_bytes], float(resp_features["entropy"]))
+
+    # ==== RESPONSE INSPECTION (Check for egress threats, exfiltration, data leaks) ====
+    response_threats = state.response_inspector.inspect_response(
+        status_code=upstream.status_code,
+        headers=dict(upstream.headers),
+        body=upstream_content,
+        request_size=len(body),
+    )
+
+    # Log response threat alerts
+    for threat in response_threats:
+        await emit_event(
+            state,
+            {
+                "event": threat.get("event", "ids_alert"),
+                "source_ip": source_ip,
+                "attack_type": threat.get("attack_type", "egress_threat"),
+                "severity": threat.get("severity", "medium"),
+                "phase": "Egress (Response Inspector)",
+                "confidence": 0.9 if threat.get("severity") == "critical" else 0.7,
+                "action": "DETECTED",
+                "message": threat.get("message", "Response threat detected"),
+                "details": threat.get("details", {}),
+            },
+        )
+
+    # If critical response threats detected, block the response
+    if any(t.get("severity") == "critical" for t in response_threats):
+        await emit_event(
+            state,
+            {
+                "event": "reply_denied",
+                "source_ip": source_ip,
+                "attack_type": "response_threat",
+                "severity": "critical",
+                "phase": "Egress (Response Inspector)",
+                "confidence": 1.0,
+                "action": "BLOCKED",
+                "message": "Response blocked due to critical egress threat detection",
+            },
+        )
+        return JSONResponse(
+            {"detail": "Response integrity check failed - critical egress threat detected"},
+            status_code=451,
+        )
 
     egress_decision = state.soar.decide_response_action(egress_score)
     if egress_decision["action"] == "DENIED":

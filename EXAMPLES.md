@@ -1,110 +1,59 @@
-# Neural-Gate Usage Examples
+# Neural-Gate Usage Examples (Current)
 
-## Example 1: Proxy a test backend
-
-Start a simple backend server (e.g., Flask app on port 3000):
+## Example 1: Start transparent mode
 
 ```bash
-# Terminal 1: backend
-python -c "from flask import Flask; app=Flask('test'); app.route('/')(lambda:'OK'); app.run(port=3000)"
+cd /home/deepak/Desktop/Neural_Gate
+./start_transparent.sh
 ```
 
-Configure Neural-Gate to proxy it:
+Traffic path:
+
+- attacker -> `127.0.0.1:3000`
+- redirected to Neural-Gate `127.0.0.1:8000`
+- forwarded to backend `127.0.0.1:3001`
+
+## Example 2: Run attack suite against public target
 
 ```bash
-# Terminal 2: edit .env or export
-export NG_TARGET_SERVER=http://localhost:3000
-export NG_PROXY_PORT=8000
-
-source .venv/bin/activate
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+NG_ATTACK_BASE_URL=http://127.0.0.1:3000 ./run_attack_test.sh
 ```
 
-Test the proxy flow:
+## Example 3: Inspect live telemetry
 
 ```bash
-# Terminal 3: client
-curl http://localhost:8000/
-# You should get "OK" and see logs in Terminal 2
+curl http://127.0.0.1:8000/api/stats
+curl "http://127.0.0.1:8000/api/siem/events?limit=20"
+curl http://127.0.0.1:8000/api/agents
 ```
 
----
-
-## Example 2: Run attack simulations locally
-
-Make sure proxy is running on port 8000, then:
+## Example 4: Analyst feedback (manual legit/not legit)
 
 ```bash
-source .venv/bin/activate
-python scripts/attack_sqli.py
-# Check the proxy logs or SOC dashboard for "threat_blocked" event
+curl -X POST http://127.0.0.1:8000/api/adaptive/feedback \
+	-H "Content-Type: application/json" \
+	-d '{"fingerprint":"<PASTE_FINGERPRINT>","label":"legit","source_ip":"127.0.0.1"}'
+
+curl -X POST http://127.0.0.1:8000/api/adaptive/feedback \
+	-H "Content-Type: application/json" \
+	-d '{"fingerprint":"<PASTE_FINGERPRINT>","label":"malicious","source_ip":"127.0.0.1"}'
+
+curl http://127.0.0.1:8000/api/adaptive/stats
 ```
 
----
-
-## Example 3: Test against an authorized staging server
+## Example 5: Blocklist and kill switch
 
 ```bash
-export NG_ALLOW_ATTACK_DEMOS=1
-export NG_ATTACK_ALLOWLIST=staging.yourcompany.internal
-export NG_PROXY_URL=http://staging.yourcompany.internal:8000
+curl http://127.0.0.1:8000/api/blocklist
+curl -X DELETE http://127.0.0.1:8000/api/blocklist/127.0.0.1
 
-python scripts/attack_all.py
+curl -X POST http://127.0.0.1:8000/api/killswitch
+curl -X DELETE http://127.0.0.1:8000/api/killswitch
 ```
 
-**WARNING**: Only run against explicitly authorized test environments you own.
-
----
-
-## Example 4: Monitor live events via SOC Dashboard
-
-1. Start proxy: `uvicorn app.main:app --host 0.0.0.0 --port 8000`
-2. Open `neural-gate-siem.html` in your browser
-3. Run demo attacks: `python scripts/attack_all.py`
-4. Watch events stream in real-time with severity color-coding
-
----
-
-## Example 5: Inspect agent scores
+## Example 6: Transparent mode cleanup
 
 ```bash
-curl http://localhost:8000/api/agents
-# Returns last analyzed request's CNN/GRU/entropy scores
-```
-
----
-
-## Example 6: Blocklist management
-
-Block an IP manually:
-
-```bash
-curl -X POST http://localhost:8000/api/blocklist/192.168.1.100
-```
-
-List blocked IPs:
-
-```bash
-curl http://localhost:8000/api/blocklist
-```
-
-Unblock an IP:
-
-```bash
-curl -X DELETE http://localhost:8000/api/blocklist/192.168.1.100
-```
-
----
-
-## Example 7: Enable kill switch (block all traffic)
-
-```bash
-curl -X POST http://localhost:8000/api/killswitch
-# All requests now return 503
-```
-
-Disable kill switch:
-
-```bash
-curl -X DELETE http://localhost:8000/api/killswitch
+sudo bash scripts/transparent_off.sh 3000 8000
+bash scripts/fix_error_98.sh 8000 3000 3001
 ```
